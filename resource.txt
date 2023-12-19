@@ -1,0 +1,15 @@
+folders: backend 
+movies (frontend)
+
+
+BACKEND - installation:
+npm i cors
+npm i express
+npm install nodemon
+npm i react-router-dom
+npm i mongodb
+
+database username: Hetaksh,
+password: Abc123
+
+npm i bcrypt
