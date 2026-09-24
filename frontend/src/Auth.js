@@ -1,60 +1,53 @@
-import React from "react";
+import React, { useState } from "react";
+import { Alert, Snackbar } from "@mui/material";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-
 import AuthForm from "./AuthForm";
 import { sendUserAuthRequest } from "./api-helpers";
 import { userActions } from "./store";
 
 const Auth = () => {
-    const dispatch = useDispatch();
-    const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
 
-    const onResReceived = (data) => {
-        console.log("USER LOGIN SUCCESS:", data);
+  const getData = async (data) => {
+    try {
+      const response = await sendUserAuthRequest(data.inputs, data.signup);
 
-        if (data.id) {
-            localStorage.setItem("userId", data.id);
-        }
+      if (data.signup) {
+        setSnackbar({
+          open: true,
+          message: "Account created successfully. Please sign in.",
+          severity: "success",
+        });
+        return;
+      }
 
+      if (response.id) {
+        localStorage.setItem("userId", response.id);
         dispatch(userActions.login());
-
         navigate("/movies");
-    };
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.message || "Authentication failed. Please try again.",
+        severity: "error",
+      });
+    }
+  };
 
-    const getData = async (data) => {
-        console.log("USER LOGIN DATA:", data);
-
-        try {
-            const response = await sendUserAuthRequest(
-                data.inputs,
-                data.signup
-            );
-
-            console.log("USER AUTH RESULT:", response);
-
-            onResReceived(response);
-        } catch (error) {
-            console.error(
-                "USER LOGIN FAILED:",
-                error.response?.data || error.message
-            );
-
-            alert(
-                error.response?.data?.message ||
-                "Login failed. Please check your email and password."
-            );
-        }
-    };
-
-    return (
-        <div>
-            <AuthForm
-                onSubmit={getData}
-                isAdmin={false}
-            />
-        </div>
-    );
+  return (
+    <>
+      <AuthForm onSubmit={getData} isAdmin={false} />
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}>
+        <Alert severity={snackbar.severity} variant="filled" sx={{ borderRadius: 2.5 }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </>
+  );
 };
 
 export default Auth;
