@@ -197,3 +197,8 @@ Movie-Booking-Application/
 │
 ├── .gitignore
 └── README.md
+| Component            | URL                                              |
+| -------------------- | ------------------------------------------------ |
+| Frontend             | [http://localhost:3000](http://localhost:3000)   |
+| Backend              | [http://localhost:2500](http://localhost:2500)   |
+| Backend Health Check | [http://localhost:2500/](http://localhost:2500/) |
