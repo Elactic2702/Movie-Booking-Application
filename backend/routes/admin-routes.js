@@ -9,7 +9,7 @@ const {
     getAdminById
 } = require('../controllers/admin-controller');
 
-adminRouter.get('/signup', addAdmin);
+adminRouter.post('/signup', addAdmin);
 
 adminRouter.post('/login', adminLogin);
 
