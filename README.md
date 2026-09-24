@@ -1,49 +1,110 @@
-# 🎬 Movie Booking Application
+# 🎬 CineBook — Movie Booking Application
 
-A full-stack movie booking application built with **React.js, Node.js, Express.js, and PostgreSQL**.
+A full-stack movie booking web application built with **React.js, Node.js, Express.js, and PostgreSQL**.
 
-The application allows users to browse available movies, view movie details, select a seat and booking date, and manage their bookings. Administrators can log in and add new movies to the platform.
+CineBook allows users to browse movies, view movie details, book seats, manage their profiles, and view their booking history. It also provides an admin dashboard for managing movies.
 
 ---
 
-## 🚀 Features
+## 🚀 Project Overview
+
+CineBook is a full-stack web application designed to demonstrate real-world frontend and backend development.
+
+The application follows a client-server architecture:
+
+- **Frontend:** React.js
+- **Backend:** Node.js + Express.js
+- **Database:** PostgreSQL
+- **Authentication:** JWT + bcrypt
+- **API Communication:** REST APIs using Axios
+- **Database Hosting:** Neon PostgreSQL
+
+The project includes separate user and admin workflows with authentication, movie management, and booking functionality.
+
+---
+
+## ✨ Features
 
 ### 👤 User Features
 
 - User registration and login
+- Secure password hashing using bcrypt
+- JWT-based authentication
 - Browse available movies
-- Search movies from the navigation bar
+- Search movies
 - View movie details
-- View movie poster, cast, description and release date
-- Select seat number and booking date
-- Confirm movie bookings
+- View movie poster, description, release date, and actors
+- Select seats
+- Select booking date
+- Book movie tickets
 - View booking history
-- Delete existing bookings
-- User profile
+- Cancel bookings
+- View user profile
+- Responsive and modern UI
 
-### 🔐 Admin Features
+### 🛠️ Admin Features
 
 - Admin login
-- Admin authentication using JWT
-- Add new movies
+- JWT-protected admin operations
+- Admin dashboard
+- View admin profile
+- Add movies
 - Add movie poster URL
 - Add movie description
 - Add release date
-- Add movie cast
+- Add actors/cast
 - Mark movies as featured
-- View administrator profile
-- View movies added by the administrator
+- View movies added by the admin
 
-### 🗄️ Backend Features
+---
 
-- RESTful API architecture
-- PostgreSQL database integration
-- Secure password hashing
-- JWT-based authentication
-- Parameterized SQL queries
-- CORS configuration
-- Separate routes and controllers
-- Error handling for API requests
+## 🖥️ Application Screens
+
+### Home Page
+
+The home page provides:
+
+- CineBook branding
+- Movie search
+- Hero section
+- Featured/latest movies
+- Navigation to movies and authentication
+
+### Movies Page
+
+Users can:
+
+- Browse available movies
+- Search movies
+- View movie information
+- Open the booking page
+
+### Movie Booking
+
+Users can:
+
+- View movie details
+- Select seats
+- Select a booking date
+- Confirm their booking
+
+### User Profile
+
+Users can:
+
+- View their account information
+- See total bookings
+- View booking history
+- Cancel existing bookings
+
+### Admin Dashboard
+
+Admins can:
+
+- View admin information
+- View movie statistics
+- View their movie library
+- Add new movies
 
 ---
 
@@ -53,21 +114,20 @@ The application allows users to browse available movies, view movie details, sel
 
 - React.js
 - React Router
-- Redux
-- Material UI (MUI)
+- Material UI
 - Axios
-- JavaScript
+- Redux
 - HTML5
 - CSS3
+- JavaScript ES6+
 
 ### Backend
 
 - Node.js
 - Express.js
-- PostgreSQL
-- `pg` PostgreSQL client
+- REST APIs
 - JWT
-- bcrypt/bcryptjs
+- bcryptjs
 - CORS
 - dotenv
 
@@ -75,10 +135,19 @@ The application allows users to browse available movies, view movie details, sel
 
 - PostgreSQL
 - Neon PostgreSQL
+- node-postgres (`pg`)
+
+### Development Tools
+
+- Visual Studio Code
+- Git
+- GitHub
+- npm
+- Postman
 
 ---
 
-## 📁 Project Structure
+## 🏗️ Project Architecture
 
 ```text
 Movie-Booking-Application/
@@ -90,37 +159,38 @@ Movie-Booking-Application/
 │   │   ├── movie-controller.js
 │   │   └── user-controller.js
 │   │
+│   ├── db/
+│   │   └── db.js
+│   │
 │   ├── routes/
 │   │   ├── admin-routes.js
 │   │   ├── booking-routes.js
 │   │   ├── movie-route.js
 │   │   └── user-route.js
 │   │
-│   ├── db/
-│   │   └── db.js
-│   │
+│   ├── .env
 │   ├── index.js
-│   ├── package.json
-│   └── .env.example
+│   └── package.json
 │
 ├── frontend/
 │   ├── public/
 │   │
 │   ├── src/
-│   │   ├── components/pages
-│   │   ├── api-helpers.js
-│   │   ├── App.js
+│   │   ├── AddMovies.js
+│   │   ├── Admin.js
+│   │   ├── AdminProfile.js
 │   │   ├── Auth.js
+│   │   ├── AuthForm.js
 │   │   ├── Booking.js
 │   │   ├── Header.js
 │   │   ├── HomePage.js
-│   │   ├── Movies.js
 │   │   ├── MovieItem.js
+│   │   ├── Movies.js
 │   │   ├── UserProfile.js
-│   │   ├── AdminProfile.js
-│   │   ├── AddMovies.js
-│   │   ├── store.js
-│   │   └── index.css
+│   │   ├── api-helpers.js
+│   │   ├── index.css
+│   │   ├── App.js
+│   │   └── store.js
 │   │
 │   ├── package.json
 │   └── README.md
