@@ -1,91 +1,156 @@
-const jwt = require("jsonwebtoken")
-const Movie = require("../models/Movies")
-const mongoose=require('mongoose');
-const admin = require("../models/Admin");
+const jwt = require("jsonwebtoken");
+const pool = require("../db/db");
 
-const addMovie = async (req, res, next) => { 
-    const extractedToken = req.headers.authorization.split(" ")[1];
-    if(!extractedToken && extractedToken.trim() ==="") {
-        return res.status(404).json({message: "Token not found"})
-    }
-    console.log(extractedToken);
-    let adminId;
 
-    //verify token
-    jwt.verify(extractedToken, process.env.SECRET_KEY, (err, decrypted) => {
-        if(err){
-            return res.status(401).json({message: 'Invalid Token'})
+const addMovie = async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).json({
+                message: "Token not found"
+            });
         }
-        else{
-            adminId = decrypted.id;
-            return;
+
+        const extractedToken = authHeader.split(" ")[1];
+
+        const decrypted = jwt.verify(
+            extractedToken,
+            process.env.SECRET_KEY
+        );
+
+        const adminId = decrypted.id;
+
+        const {
+            title,
+            description,
+            releaseDate,
+            posterUrl,
+            featured,
+            actors
+        } = req.body;
+
+        if (
+            !title ||
+            title.trim() === "" ||
+            !description ||
+            description.trim() === "" ||
+            !posterUrl ||
+            posterUrl.trim() === ""
+        ) {
+            return res.status(422).json({
+                message: "Invalid Inputs"
+            });
         }
-    })
 
-    //create new movie
-    const { title, description, releaseDate, posterUrl, featured, actors } = req.body;
-    console.log(req.body);
+        const adminResult = await pool.query(
+            "SELECT id FROM admins WHERE id = $1",
+            [adminId]
+        );
 
-        if(res.status==400)
-        {
-            res.send("error");
+        if (adminResult.rows.length === 0) {
+            return res.status(404).json({
+                message: "Admin not found"
+            });
         }
-    if(!title && title.trim() ==="" && !description && description.trim() ==="" && !posterUrl && posterUrl.trim() ===""){
-        return res.status(422).json({message: `Invalid Inputs`})
+
+        const result = await pool.query(
+            `INSERT INTO movies
+            (
+                title,
+                description,
+                release_date,
+                poster_url,
+                featured,
+                actors,
+                admin_id
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *`,
+            [
+                title,
+                description,
+                new Date(releaseDate),
+                posterUrl,
+                featured || false,
+                JSON.stringify(actors || []),
+                adminId
+            ]
+        );
+
+        return res.status(201).json({
+            movie: result.rows[0]
+        });
+
+    } catch (err) {
+
+        if (
+            err.name === "JsonWebTokenError" ||
+            err.name === "TokenExpiredError"
+        ) {
+            return res.status(401).json({
+                message: "Invalid or expired token"
+            });
+        }
+
+        return res.status(500).json({
+            message: err.message
+        });
     }
+};
 
-    let movie; 
-    try{
-        movie = new Movie({title, description, releaseDate: new Date(`${releaseDate}`), posterUrl, featured, actors, admin: adminId})
-        
-        const session=await mongoose.startSession();
-        const adminUser= await admin.findById(adminId);
 
-        session.startTransaction();
-        await movie.save({session})
-        adminUser.addedMovies.push(movie);
-        await adminUser.save({session});
+const getAllMovie = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT *
+             FROM movies
+             ORDER BY id DESC`
+        );
 
-        await session.commitTransaction();
-    } catch (err){
-        return res.send(err.message);
+        return res.status(200).json({
+            movies: result.rows
+        });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: err.message
+        });
     }
+};
 
-    if(!movie) {
-        return res.status(500).json({message: "Request Failed"})
-    }
-    return res.status(201).json({movie})
-}
 
-const getAllMovie = async (req, res, next) => {
-    
-    let movies;
-    try{
-        movies = await Movie.find();
-    } catch (err){
-        return console.log(err);
-    }
-
-    if(!movies){
-        return res.status(500).json({message: "Request failed"});
-    }
-    return res.status(200).json({movies});
-}
-
-const getMovieById = async (req, res, next) => {
+const getMovieById = async (req, res) => {
     const id = req.params.id;
-    let movie;
 
-    try{
-        movie = await Movie.findById(id);
-    } catch (err){
-        return console.log(err);
+    try {
+        const result = await pool.query(
+            `SELECT *
+             FROM movies
+             WHERE id = $1`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                message: "Invalid Movie Id"
+            });
+        }
+
+        return res.status(200).json({
+            movie: result.rows[0]
+        });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: "Invalid Movie ID"
+        });
     }
-    if(!movie){
-        return res.status(404).json({message: "Invalid Movie Id"});
-    }
-    return res.status(200).json({movie})
-}
+};
 
 
-module.exports = {addMovie, getAllMovie, getMovieById}
+module.exports = {
+    addMovie,
+    getAllMovie,
+    getMovieById
+};

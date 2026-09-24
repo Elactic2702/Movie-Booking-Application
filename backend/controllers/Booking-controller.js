@@ -1,81 +1,104 @@
-const mongoose = require('mongoose');
-const Movie = require("../models/Movies");
-const users = require('../models/User');
-const Bookings = require("../models/Booking");
+const pool = require("../db/db");
 
-const Booking = async (req, res, next) => {
-    const {movie, date, seatNumber, user} = req.body;
-    let existingMovie;
-    let existingUser;
-    try{
-        existingMovie = await Movie.findById(movie);
-        existingUser = await users.findById(user);
-        console.log(existingMovie, existingUser)
-    } catch (err){
-        return res.send(err.message);
-    }
-    if(!existingMovie)
-    {
-        return res.status(404).json({message:"Movie not found by given id"});
-    }
-    if(!existingUser)
-    {
-        return res.status(404).json({message:"User not found by given id"});
-    }
-    let newBooking;
-    try{
-        newBooking=new Bookings({
-            movie,
-            date:new Date(`${date}`),
-            seatNumber,
-            user
+
+const Booking = async (req, res) => {
+    const { movie, date, seatNumber, user } = req.body;
+
+    const client = await pool.connect();
+
+    try {
+        const existingMovie = await client.query(
+            "SELECT id FROM movies WHERE id = $1",
+            [movie]
+        );
+
+        if (existingMovie.rows.length === 0) {
+            return res.status(404).json({
+                message: "Movie not found by given id"
+            });
+        }
+
+        const existingUser = await client.query(
+            "SELECT id FROM users WHERE id = $1",
+            [user]
+        );
+
+        if (existingUser.rows.length === 0) {
+            return res.status(404).json({
+                message: "User not found by given id"
+            });
+        }
+
+        await client.query("BEGIN");
+
+        const bookingResult = await client.query(
+            `INSERT INTO bookings
+            (
+                movie_id,
+                user_id,
+                booking_date,
+                seat_number
+            )
+            VALUES ($1, $2, $3, $4)
+            RETURNING *`,
+            [
+                movie,
+                user,
+                new Date(date),
+                seatNumber
+            ]
+        );
+
+        await client.query("COMMIT");
+
+        return res.status(201).json({
+            newBooking: bookingResult.rows[0]
         });
 
-        const session= await mongoose.startSession();
-        session.startTransaction();
-        existingUser.bookings.push(newBooking);
-        existingMovie.bookings.push(newBooking);
-        await existingUser.save({ session });
-        await existingMovie.save({ session });
-        await newBooking.save({ session });
-        
-        session.commitTransaction();
-        // newBooking = await newBooking.save();
-    }
-    catch(e)
-    { 
-        res.send(e.message);
-    }
+    } catch (err) {
 
-    if(!newBooking)
-    {
-        res.status(400).json({message:"Something Went Wrong"})
-    }
-    console.log(newBooking);
-    return res.status(201).json({newBooking}); 
-} 
+        await client.query("ROLLBACK");
 
-const deleteBooking = async (req, res, next) => {
+        return res.status(500).json({
+            message: err.message
+        });
+
+    } finally {
+        client.release();
+    }
+};
+
+
+const deleteBooking = async (req, res) => {
     const id = req.params.id;
-    let booking;
+
     try {
-        booking = await Bookings.findByIdAndRemove(id).populate("user movie");
-        console.log(booking);
-        const session = await mongoose.startSession();
-        session.startTransaction();
-        await booking.user.bookings.pull(booking);
-        await booking.movie.bookings.pull(booking);
-        await booking.movie.save({ session });
-        await booking.user.save({ session });
-        session.commitTransaction(); 
+        const result = await pool.query(
+            `DELETE FROM bookings
+             WHERE id = $1
+             RETURNING id`,
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                message: "Booking not found by given id"
+            });
+        }
+
+        return res.status(200).json({
+            message: "Booking deleted successfully"
+        });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: err.message
+        });
     }
-    catch (err) {
-        return console.log(err);
-    }
-    if (!booking) {
-        return res.status(404).json({ message: "Booking not found by given id" });
-    }
-    return res.status(200).json({ message: "Booking deleted successfully" });
-}
-  
-module.exports = {Booking, deleteBooking};  
+};
+
+
+module.exports = {
+    Booking,
+    deleteBooking
+};

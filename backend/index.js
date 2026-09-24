@@ -1,35 +1,48 @@
-const express = require('express');
-const app = express();
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const userRouter = require('./routes/user-routes');
-const adminRouter = require('./routes/admin-routes');
-const movieRouter = require('./routes/movie-routes');
-const bookingRouter = require('./routes/booking-routes');
-
+const dotenv = require("dotenv");
 dotenv.config();
-const cors = require('cors');
+
+const express = require("express");
+const cors = require("cors");
+
+const pool = require("./db/db");
+
+const userRouter = require("./routes/user-route");
+const adminRouter = require("./routes/admin-routes");
+const movieRouter = require("./routes/movie-route");
+const bookingRouter = require("./routes/booking-routes");
+
+const app = express();
+
 app.use(cors());
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET', 'POST', 'PUT', 'DELETE');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    next();
-})
-
-//middleware section
-
 app.use(express.json());
+
+app.get("/", (req, res) => {
+    res.json({
+        message: "Movie Booking API is running"
+    });
+});
+
 app.use("/users", userRouter);
 app.use("/admin", adminRouter);
 app.use("/movies", movieRouter);
 app.use("/booking", bookingRouter);
 
+const PORT = process.env.PORT || 2500;
 
+const startServer = async () => {
+    try {
+        await pool.query("SELECT NOW()");
 
-mongoose.connect("mongodb+srv://Hetaksh:Abc123@november-cluster.xvhd5ky.mongodb.net/"
-).then(() => app.listen(2500, () =>
-    console.log("Connected to the server + port")
-)
-)
-    .catch(e => console.log(e));
+        console.log("PostgreSQL database connected");
+
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+
+    } catch (error) {
+        console.error("PostgreSQL connection failed:");
+        console.error(error);
+    }
+};
+
+startServer();

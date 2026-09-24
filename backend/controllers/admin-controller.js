@@ -1,85 +1,180 @@
-const jwt = require('jwt');
-const Admin = require('../models/admin');
-const bcrypt = require('bcrypt');
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
+const pool = require("../db/db");
 
-const addAdmin = async (req, res, next) => {
-    const { email, password } = req.body;
-    try {
-        let existingAdmin = await Admin.findOne({ email })
-    }
-    catch (err) {
-        return console.log(err);
-    }
-    if (existingAdmin) {
-        return res.status(400).json({ message: "Admin Already Exists" })
-    }
-    let admin;
-    const hashedpassword = bcrypt.hashSync(password);
-    try {
-        admin = new Admin({ email, password: hashedPassword });
-        admin = await admin.save();
-    }
-    catch (err) { 
-        return console.log(err);
-    }
-    if (!admin) {
-        return res.status(400).json({ message: "Unable to create admin" });
-    }
-    
-    return res.status(201).json({ message:"Admin Created", admin: admin });
-}
-const adminLogin = async (req, res, next) => {
+
+const addAdmin = async (req, res) => {
     const { email, password } = req.body;
 
-    if(!email && email.trim() === "" &&  
-        !password && password.trim() === "") {
-        return res.status(400).json({ message: "Invalid Inputs"})
+    if (
+        !email ||
+        email.trim() === "" ||
+        !password ||
+        password.trim() === ""
+    ) {
+        return res.status(400).json({
+            message: "Invalid Inputs"
+        });
     }
-    let existingAdmin;
-    try {
-        existingAdmin = await Admin.findOne({email})
-    } catch (err){
-        return console.log(err)
-    }
-    if(!existingAdmin){
-        return res.status(401).json({message: "Admin not found"})
-    }
-    const isPasswordCorrect = bcrypt.compareSync(password, existingAdmin.password)
 
-    if(!isPasswordCorrect){
-        return res.status(400).json({message: "Incorrect Password"})
-    }
-    const token = jwt.sign({id: existingAdmin._id}, process.env.SECRET_KEY, {expiresIn: '7d'})
-    return res.status(200).json({message: "Authentication Successful", token, id:existingAdmin._id});
-}
-const getAdmins=async(req,res)=>{
-    let admins;
-    try{
-        admins=await Admin.find();
-    }
-    catch(e)
-    {
-        return res.send(e.message);
-    }
-    if(!admins)
-    {
-        return res.status(400).json({message:"cannot get admin"});
-    }
-    return res.status(200).json({admins});
-}
-const getAdminByID = async (req, res, next) => {
-    const id = req.params.id;
-    let admin;
     try {
-        admin = await Admin.findById(id)
-        .populate("addedMovies");
+        const existingAdmin = await pool.query(
+            "SELECT id FROM admins WHERE email = $1",
+            [email]
+        );
+
+        if (existingAdmin.rows.length > 0) {
+            return res.status(400).json({
+                message: "Admin Already Exists"
+            });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const result = await pool.query(
+            `INSERT INTO admins (email, password)
+             VALUES ($1, $2)
+             RETURNING id, email`,
+            [email, hashedPassword]
+        );
+
+        return res.status(201).json({
+            message: "Admin Created",
+            admin: result.rows[0]
+        });
+
     } catch (err) {
-        return console.log(err);
+        return res.status(500).json({
+            message: err.message
+        });
     }
-    if (!admin) {
-        return console.log("Cannot find Admin");  
-    }
-    return res.status(200).json({ admin })
 };
- 
-module.exports = {addAdmin, adminLogin, getAdmins, getAdminByID}
+
+
+const adminLogin = async (req, res) => {
+    const { email, password } = req.body;
+
+    if (
+        !email ||
+        email.trim() === "" ||
+        !password ||
+        password.trim() === ""
+    ) {
+        return res.status(400).json({
+            message: "Invalid Inputs"
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            "SELECT * FROM admins WHERE email = $1",
+            [email]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(401).json({
+                message: "Admin not found"
+            });
+        }
+
+        const existingAdmin = result.rows[0];
+
+        const isPasswordCorrect = await bcrypt.compare(
+            password,
+            existingAdmin.password
+        );
+
+        if (!isPasswordCorrect) {
+            return res.status(400).json({
+                message: "Incorrect Password"
+            });
+        }
+
+        const token = jwt.sign(
+            {
+                id: existingAdmin.id
+            },
+            process.env.SECRET_KEY,
+            {
+                expiresIn: "7d"
+            }
+        );
+
+        return res.status(200).json({
+            message: "Authentication Successful",
+            token,
+            id: existingAdmin.id
+        });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: err.message
+        });
+    }
+};
+
+
+const getAdmin = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, email
+             FROM admins`
+        );
+
+        return res.status(200).json({
+            admins: result.rows
+        });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: err.message
+        });
+    }
+};
+
+
+const getAdminById = async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        const adminResult = await pool.query(
+            `SELECT id, email
+             FROM admins
+             WHERE id = $1`,
+            [id]
+        );
+
+        if (adminResult.rows.length === 0) {
+            return res.status(404).json({
+                message: "Admin not found"
+            });
+        }
+
+        const moviesResult = await pool.query(
+            `SELECT *
+             FROM movies
+             WHERE admin_id = $1`,
+            [id]
+        );
+
+        return res.status(200).json({
+            admin: {
+                ...adminResult.rows[0],
+                addedMovies: moviesResult.rows
+            }
+        });
+
+    } catch (err) {
+        return res.status(500).json({
+            message: err.message
+        });
+    }
+};
+
+
+module.exports = {
+    addAdmin,
+    adminLogin,
+    getAdmin,
+    getAdminById
+};
